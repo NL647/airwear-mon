@@ -7,19 +7,19 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
-:root {
-  --bg:#F4F5F7; --card:#FFFFFF; --ink:#111827; --dim:#9CA3AF; --line:#E5E7EB;
-  --aqi:#059669; --halo:rgba(5,150,105,.08); --halo-s:.3; --breath:3.5s;
-  --fn:'Barlow Condensed',sans-serif; --fu:'Barlow',system-ui,sans-serif;
+:root{
+  --bg:#F4F5F7;--card:#FFFFFF;--ink:#111827;--dim:#9CA3AF;--line:#E5E7EB;
+  --aqi:#059669;--halo:rgba(5,150,105,.08);--halo-s:.3;--breath:3.5s;
+  --fn:'Barlow Condensed',sans-serif;--fu:'Barlow',system-ui,sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
 body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   font-family:var(--fu);-webkit-tap-highlight-color:transparent;}
 
-/* ── top bar ── */
+/* top bar */
 .topbar{display:flex;align-items:center;padding:10px 12px;gap:9px;
-  background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0;z-index:100;}
+  background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0;}
 .wordmark{font-family:var(--fn);font-weight:700;font-size:16px;letter-spacing:.14em;white-space:nowrap;}
 .wordmark b{color:var(--aqi);transition:color .5s;}
 .tabs{display:flex;background:var(--bg);border-radius:8px;padding:3px;gap:2px;}
@@ -36,11 +36,11 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 .dot.on{background:var(--aqi);animation:blink 2s ease-in-out infinite;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
 
-/* ── tab panels ── */
+/* panels */
 .panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
 .panel.hide{display:none;}
 
-/* ── LIVE ── */
+/* LIVE */
 .hero{flex:1;display:flex;flex-direction:column;align-items:center;
   justify-content:center;position:relative;overflow:hidden;padding:20px;}
 .halo{position:absolute;width:340px;height:340px;border-radius:50%;
@@ -61,9 +61,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   color:var(--aqi);transition:color .5s;text-transform:uppercase;}
 .cat-sub{font-size:11px;color:var(--dim);letter-spacing:.12em;
   text-transform:uppercase;margin-top:3px;}
-
-.substats{display:flex;border-top:1px solid var(--line);
-  background:var(--card);flex-shrink:0;}
+.substats{display:flex;border-top:1px solid var(--line);background:var(--card);flex-shrink:0;}
 .ss{flex:1;padding:12px 0;text-align:center;border-right:1px solid var(--line);}
 .ss:last-child{border-right:none;}
 .ss-k{font-family:var(--fn);font-size:10px;letter-spacing:.2em;
@@ -71,9 +69,8 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 .ss-v{font-family:var(--fn);font-weight:700;font-size:22px;
   color:var(--ink);font-variant-numeric:tabular-nums;}
 
-/* ── MAP ── */
-.mstats{display:flex;background:var(--card);
-  border-bottom:1px solid var(--line);flex-shrink:0;}
+/* MAP stats row */
+.mstats{display:flex;background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0;}
 .ms{flex:1;padding:10px 4px;text-align:center;border-right:1px solid var(--line);}
 .ms:last-child{border-right:none;}
 .ms-k{font-family:var(--fn);font-size:9px;letter-spacing:.18em;
@@ -82,15 +79,36 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   color:var(--ink);font-variant-numeric:tabular-nums;word-break:break-all;}
 .ms-v.hi{color:var(--aqi);transition:color .5s;}
 
+/* ── Recording action bar ─────────────────────────────────── */
+.recbar{
+  display:flex;gap:8px;padding:9px 12px;
+  background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0;
+}
+.rec-btn{
+  flex:1;padding:13px 10px;border:none;border-radius:10px;
+  background:var(--aqi);color:#fff;font-family:var(--fn);
+  font-weight:700;font-size:15px;letter-spacing:.1em;
+  text-transform:uppercase;cursor:pointer;transition:background .25s,transform .1s;
+}
+.rec-btn:active{transform:scale(.97);}
+.rec-btn.recording{background:#DC2626;}
+.act-btn{
+  padding:13px 18px;border:1.5px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--ink);font-family:var(--fn);
+  font-weight:700;font-size:15px;cursor:pointer;transition:.15s;
+  white-space:nowrap;
+}
+.act-btn:active{background:var(--bg);}
+.act-btn:disabled{opacity:.35;cursor:default;}
+
+/* map */
 .mapwrap{flex:1;position:relative;min-height:0;display:flex;flex-direction:column;}
 #map{flex:1;}
 .leaflet-container{font-family:var(--fu)!important;}
 
-/* map FABs */
-.fab-col{position:absolute;right:10px;display:flex;flex-direction:column;gap:8px;z-index:500;}
-.fab-col.top{top:10px;}
-.fab-col.bot{bottom:36px;}
-.fab{width:40px;height:40px;border-radius:9px;background:var(--card);
+/* fit-route FAB only */
+.fab{position:absolute;top:10px;right:10px;z-index:500;
+  width:40px;height:40px;border-radius:9px;background:var(--card);
   border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
   font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);}
 
@@ -108,14 +126,22 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,.25);}
 
 /* legend */
-.legend{position:absolute;left:10px;bottom:32px;z-index:500;
+.legend{position:absolute;left:10px;bottom:12px;z-index:500;
   background:rgba(255,255,255,.92);border-radius:8px;
   border:1px solid var(--line);padding:7px 10px;
   font-family:'Barlow Condensed',sans-serif;font-size:11px;line-height:1.8;}
 .leg{display:flex;align-items:center;gap:6px;}
 .leg-d{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 
-/* ── bottom bar ── */
+/* recording pulse indicator */
+.rec-dot{
+  width:10px;height:10px;border-radius:50%;background:#DC2626;
+  display:inline-block;margin-right:6px;
+  animation:recpulse 1s ease-in-out infinite;
+}
+@keyframes recpulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* bottom bar */
 .bar{display:flex;gap:10px;padding:10px 12px;
   background:var(--card);border-top:1px solid var(--line);
   flex-shrink:0;align-items:center;}
@@ -133,7 +159,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   text-align:center;color:var(--ink);outline:none;}
 .thr-i:focus{border-color:var(--aqi);}
 
-/* ── overlays ── */
+/* overlays */
 .flash{position:fixed;inset:0;pointer-events:none;z-index:9999;
   background:var(--aqi);opacity:0;transition:opacity .08s;}
 .flash.on{opacity:.18;}
@@ -153,7 +179,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 <div class="noble" id="noble">
   <div class="noble-c">
     <h2>Open in Bluefy</h2>
-    <p>Web Bluetooth is not available in this browser.<br><br>
+    <p>Web Bluetooth is not available here.<br><br>
     Open this page in <strong>Bluefy</strong> (App Store) to use Web Bluetooth on iPhone.</p>
   </div>
 </div>
@@ -162,8 +188,8 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 <div class="topbar">
   <div class="wordmark">AIR<b id="wAqi">WEAR</b></div>
   <div class="tabs">
-    <button class="tab on"  id="t-live" onclick="go('live')">LIVE</button>
-    <button class="tab"     id="t-map"  onclick="go('map')">MAP</button>
+    <button class="tab on" id="t-live" onclick="go('live')">LIVE</button>
+    <button class="tab"    id="t-map"  onclick="go('map')">MAP</button>
   </div>
   <div class="pill">
     <div class="dot" id="dot"></div>
@@ -171,7 +197,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   </div>
 </div>
 
-<!-- LIVE PANEL -->
+<!-- ── LIVE PANEL ─────────────────────────────────────────── -->
 <div class="panel" id="p-live">
   <div class="hero">
     <div class="halo"></div>
@@ -191,28 +217,34 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   </div>
 </div>
 
-<!-- MAP PANEL -->
+<!-- ── MAP PANEL ──────────────────────────────────────────── -->
 <div class="panel hide" id="p-map">
+
+  <!-- stats strip -->
   <div class="mstats">
     <div class="ms"><div class="ms-k">GPS</div><div class="ms-v" id="mGps" style="font-size:11px">NO FIX</div></div>
     <div class="ms"><div class="ms-k">DIST</div><div class="ms-v" id="mDist">0 m</div></div>
     <div class="ms"><div class="ms-k">TIME</div><div class="ms-v" id="mTime">00:00</div></div>
     <div class="ms"><div class="ms-k">PEAK 2.5</div><div class="ms-v hi" id="mPeak">––</div></div>
   </div>
+
+  <!-- ── recording action bar ── -->
+  <div class="recbar">
+    <button class="rec-btn" id="recBtn" onclick="toggleRec()">⏺ START TRIP</button>
+    <button class="act-btn" id="expBtn" onclick="exportData()" disabled>↓ EXPORT</button>
+    <button class="act-btn" id="clrBtn" onclick="clearTrip()" style="padding:13px 12px;">✕</button>
+  </div>
+
+  <!-- map -->
   <div class="mapwrap">
     <div id="map"></div>
-    <div class="fab-col top">
-      <div class="fab" id="fitBtn" title="Fit route">⊙</div>
-    </div>
-    <div class="fab-col bot">
-      <div class="fab" id="expBtn" title="Export">↓</div>
-    </div>
+    <div class="fab" id="fitBtn" title="Fit route">⊙</div>
     <div class="legend">
       <div class="leg"><div class="leg-d" style="background:#059669"></div>≤ 12 good</div>
       <div class="leg"><div class="leg-d" style="background:#D97706"></div>≤ 35 moderate</div>
       <div class="leg"><div class="leg-d" style="background:#EA580C"></div>≤ 55 sensitive</div>
       <div class="leg"><div class="leg-d" style="background:#DC2626"></div>≤ 150 unhealthy</div>
-      <div class="leg"><div class="leg-d" style="background:#7C3AED"></div>150 + v.unhealthy</div>
+      <div class="leg"><div class="leg-d" style="background:#7C3AED"></div>150+ v.unhealthy</div>
     </div>
   </div>
 </div>
@@ -228,310 +260,320 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ─── BLE UUIDs (must match firmware) ────────────────────────
+// ── BLE UUIDs ──────────────────────────────────────────────
 const SVC = 'a7c0aa00-7e9c-4f1a-8b2d-1f3e5c7a9b01';
 const PM  = 'a7c0aa01-7e9c-4f1a-8b2d-1f3e5c7a9b01';
 const CMD = 'a7c0aa02-7e9c-4f1a-8b2d-1f3e5c7a9b01';
 
 const $ = id => document.getElementById(id);
 
-// ─── State ──────────────────────────────────────────────────
-let track = [];          // {t, lat, lng, pm1, pm25, pm10}
-let peakPts = [];        // {…point, marker}
-let totalDist = 0;
-let startTime = null;
-let lastMapPt = null;    // last point added to map (for segments)
-let lastPos = null;      // latest GPS fix
-let peakPm25 = 0;
-let sampleCount = 0;
-let lastAlert = 0;
-let audioCtx = null;
-let cmdChar = null;
-let timerIv = null;
-let leafMap = null;
-let posMarker = null;
-let mapReady = false;
+// ── State ──────────────────────────────────────────────────
+let track      = [];
+let peakPts    = [];
+let totalDist  = 0;
+let startTime  = null;
+let lastMapPt  = null;
+let lastPos    = null;
+let peakPm25   = 0;
+let sampleCount= 0;
+let lastAlert  = 0;
+let recording  = false;
+let audioCtx   = null;
+let cmdChar    = null;
+let timerIv    = null;
+let leafMap    = null;
+let posMarker  = null;
+let mapReady   = false;
 
-// ─── AQI ────────────────────────────────────────────────────
-function aqi(pm) {
-  if (pm <= 12)  return ['#059669','GOOD','breathe easy',3.5,.2];
-  if (pm <= 35)  return ['#D97706','MODERATE','acceptable',2.2,.4];
-  if (pm <= 55)  return ['#EA580C','SENSITIVE','sensitive groups',1.4,.6];
-  if (pm <= 150) return ['#DC2626','UNHEALTHY','reduce exposure',.9,.8];
-  if (pm <= 250) return ['#7C3AED','V. UNHEALTHY','avoid this area',.5,.95];
-  return               ['#9F1239','HAZARDOUS','leave the area',.35,1.0];
+// ── AQI ────────────────────────────────────────────────────
+function aqi(pm){
+  if(pm<=12)  return['#059669','GOOD','breathe easy',3.5,.2];
+  if(pm<=35)  return['#D97706','MODERATE','acceptable',2.2,.4];
+  if(pm<=55)  return['#EA580C','SENSITIVE','sensitive groups',1.4,.6];
+  if(pm<=150) return['#DC2626','UNHEALTHY','reduce exposure',.9,.8];
+  if(pm<=250) return['#7C3AED','V. UNHEALTHY','avoid this area',.5,.95];
+  return            ['#9F1239','HAZARDOUS','leave the area',.35,1];
 }
-const rgb = h => `${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)}`;
+const rgb = h=>`${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)}`;
 
-// ─── Tab switching ───────────────────────────────────────────
-function go(name) {
-  ['live','map'].forEach(n => {
-    $('p-'+n).classList.toggle('hide', n !== name);
-    $('t-'+n).classList.toggle('on',   n === name);
+// ── Tab switching ───────────────────────────────────────────
+function go(name){
+  ['live','map'].forEach(n=>{
+    $('p-'+n).classList.toggle('hide', n!==name);
+    $('t-'+n).classList.toggle('on',   n===name);
   });
-  if (name === 'map') {
-    if (!mapReady) setTimeout(initMap, 60);
-    else           setTimeout(() => leafMap.invalidateSize(), 60);
+  if(name==='map'){
+    if(!mapReady) setTimeout(initMap,60);
+    else          setTimeout(()=>leafMap.invalidateSize(),60);
   }
 }
 
-// ─── Leaflet map ─────────────────────────────────────────────
-function initMap() {
-  // default centre: Ho Chi Minh City
-  leafMap = L.map('map', { zoomControl:false, attributionControl:false })
-             .setView([10.762, 106.66], 14);
+// ── Map init ────────────────────────────────────────────────
+function initMap(){
+  leafMap = L.map('map',{zoomControl:false,attributionControl:false})
+             .setView([10.762,106.66],14);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-              { maxZoom:19 }).addTo(leafMap);
-  L.control.zoom({ position:'topright' }).addTo(leafMap);
+              {maxZoom:19}).addTo(leafMap);
+  L.control.zoom({position:'topright'}).addTo(leafMap);
   mapReady = true;
-
   $('fitBtn').addEventListener('click', fitRoute);
-  $('expBtn').addEventListener('click', exportData);
 
-  // replay any data that arrived before map was open
-  const geoTrack = track.filter(r => r.lat !== null);
-  geoTrack.forEach((r, i) => {
-    if (i > 0) drawSeg(geoTrack[i-1], r);
-  });
-  if (lastPos) movePos(lastPos.lat, lastPos.lng, true);
+  // replay any data accumulated before map was opened
+  const geo = track.filter(r=>r.lat!==null);
+  geo.forEach((r,i)=>{ if(i>0) drawSeg(geo[i-1],r); });
+  if(lastPos) movePos(lastPos.lat,lastPos.lng,true);
 }
 
-function fitRoute() {
-  const pts = track.filter(r => r.lat !== null).map(r => [r.lat, r.lng]);
-  if (pts.length > 1) leafMap.fitBounds(pts, { padding:[30,30] });
-  else if (lastPos)   leafMap.setView([lastPos.lat, lastPos.lng], 16);
+function fitRoute(){
+  const pts = track.filter(r=>r.lat!==null).map(r=>[r.lat,r.lng]);
+  if(pts.length>1) leafMap.fitBounds(pts,{padding:[30,30]});
+  else if(lastPos) leafMap.setView([lastPos.lat,lastPos.lng],16);
 }
 
-// ─── Draw a colored polyline segment + dot ───────────────────
-function drawSeg(a, b) {
-  if (!a?.lat || !b?.lat) return;
-  const [col] = aqi(b.pm25);
+// ── Draw segment + dot ──────────────────────────────────────
+function drawSeg(a,b){
+  if(!a?.lat||!b?.lat) return;
+  const[col]=aqi(b.pm25);
   L.polyline([[a.lat,a.lng],[b.lat,b.lng]],
-    { color:col, weight:5, opacity:.85, lineCap:'round' }).addTo(leafMap);
+    {color:col,weight:5,opacity:.85,lineCap:'round'}).addTo(leafMap);
   L.circleMarker([b.lat,b.lng],
-    { radius:4, color:col, weight:1, fillColor:col, fillOpacity:.9 }).addTo(leafMap);
+    {radius:4,color:col,weight:1,fillColor:col,fillOpacity:.9}).addTo(leafMap);
 }
 
-// ─── Current position marker ─────────────────────────────────
-function movePos(lat, lng, center) {
-  const icon = L.divIcon({
-    className:'', html:'<div class="pos"></div>', iconSize:[16,16], iconAnchor:[8,8]
-  });
-  if (!posMarker) posMarker = L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(leafMap);
-  else            posMarker.setLatLng([lat,lng]);
-  if (center)     leafMap.setView([lat,lng], 16);
+// ── Current position ────────────────────────────────────────
+function movePos(lat,lng,center){
+  const icon=L.divIcon({className:'',html:'<div class="pos"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+  if(!posMarker) posMarker=L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(leafMap);
+  else           posMarker.setLatLng([lat,lng]);
+  if(center)     leafMap.setView([lat,lng],16);
 }
 
-// ─── Peak badges ─────────────────────────────────────────────
-const PEAK_GAP = 80;   // min metres between peaks
-const MAX_PK   = 8;
-
-function checkPeak(pt) {
-  const thr = parseFloat($('thr').value) || 35;
-  if (pt.pm25 < thr || !pt.lat) return;
-
-  // too close to an existing peak?
-  for (let i = 0; i < peakPts.length; i++) {
-    const d = hav(pt.lat,pt.lng, peakPts[i].lat,peakPts[i].lng);
-    if (d < PEAK_GAP) {
-      if (pt.pm25 > peakPts[i].pm25) {
-        leafMap.removeLayer(peakPts[i].marker);
-        peakPts.splice(i,1);
-      } else return;   // already have a better peak here
-      break;
+// ── Peak badges ─────────────────────────────────────────────
+const PEAK_GAP=80, MAX_PK=8;
+function checkPeak(pt){
+  const thr=parseFloat($('thr').value)||35;
+  if(pt.pm25<thr||!pt.lat) return;
+  for(let i=0;i<peakPts.length;i++){
+    const d=hav(pt.lat,pt.lng,peakPts[i].lat,peakPts[i].lng);
+    if(d<PEAK_GAP){
+      if(pt.pm25>peakPts[i].pm25){ leafMap.removeLayer(peakPts[i].marker); peakPts.splice(i,1); break; }
+      else return;
     }
   }
-
-  // evict weakest if full
-  if (peakPts.length >= MAX_PK) {
-    const w = peakPts.reduce((a,b) => a.pm25 < b.pm25 ? a : b);
-    if (pt.pm25 <= w.pm25) return;
-    leafMap.removeLayer(w.marker);
-    peakPts.splice(peakPts.indexOf(w), 1);
+  if(peakPts.length>=MAX_PK){
+    const w=peakPts.reduce((a,b)=>a.pm25<b.pm25?a:b);
+    if(pt.pm25<=w.pm25) return;
+    leafMap.removeLayer(w.marker); peakPts.splice(peakPts.indexOf(w),1);
   }
-
-  const [col] = aqi(pt.pm25);
-  const icon = L.divIcon({
+  const[col]=aqi(pt.pm25);
+  const icon=L.divIcon({
     className:'',
-    html:`<div class="pk" style="border-color:${col}">
-            <div class="pk-v" style="color:${col}">${pt.pm25}</div>
-            <div class="pk-l">peak</div>
-          </div>`,
-    iconSize:[46,38], iconAnchor:[23,38]
+    html:`<div class="pk" style="border-color:${col}"><div class="pk-v" style="color:${col}">${pt.pm25}</div><div class="pk-l">peak</div></div>`,
+    iconSize:[46,38],iconAnchor:[23,38]
   });
-  const m = L.marker([pt.lat,pt.lng],{icon}).addTo(leafMap);
-  m.bindPopup(
-    `<b>PM2.5: ${pt.pm25} µg/m³</b><br>PM1: ${pt.pm1} · PM10: ${pt.pm10}<br>` +
-    `<small>${new Date(pt.t).toLocaleTimeString()}</small>`
-  );
-  peakPts.push({...pt, marker:m});
+  const m=L.marker([pt.lat,pt.lng],{icon}).addTo(leafMap);
+  m.bindPopup(`<b>PM2.5: ${pt.pm25} µg/m³</b><br>PM1: ${pt.pm1} · PM10: ${pt.pm10}<br><small>${new Date(pt.t).toLocaleTimeString()}</small>`);
+  peakPts.push({...pt,marker:m});
 }
 
-// ─── Haversine distance (metres) ────────────────────────────
-function hav(la1,lo1,la2,lo2) {
-  const R = 6371000, dLa = (la2-la1)*Math.PI/180, dLo = (lo2-lo1)*Math.PI/180;
-  const a = Math.sin(dLa/2)**2 + Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2;
+// ── Haversine ───────────────────────────────────────────────
+function hav(la1,lo1,la2,lo2){
+  const R=6371000,dLa=(la2-la1)*Math.PI/180,dLo=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
-const fmtDist = m => m < 1000 ? Math.round(m)+' m' : (m/1000).toFixed(2)+' km';
+const fmtDist=m=>m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km';
 
-// ─── Trip timer ──────────────────────────────────────────────
-function startTimer() {
-  if (timerIv) return;
-  startTime = startTime || Date.now();
-  timerIv = setInterval(() => {
-    const s = Math.floor((Date.now()-startTime)/1000);
-    $('mTime').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-  }, 1000);
+// ── Recording controls ──────────────────────────────────────
+function toggleRec(){
+  if(!recording) startTrip();
+  else           stopTrip();
 }
 
-// ─── GPS watch ──────────────────────────────────────────────
-if ('geolocation' in navigator) {
-  navigator.geolocation.watchPosition(pos => {
-    const {latitude:lat, longitude:lng} = pos.coords;
-    lastPos = {lat, lng};
-    $('mGps').textContent = lat.toFixed(4)+', '+lng.toFixed(4);
-    if (mapReady) movePos(lat, lng, !posMarker);
-  }, () => { $('mGps').textContent = 'NO FIX'; },
-  { enableHighAccuracy:true, maximumAge:2000, timeout:10000 });
-}
-
-// ─── Handle one sensor sample ───────────────────────────────
-function onSample(pm1, pm25, pm10) {
-  sampleCount++;
-  if (!startTime) startTimer();
-
-  // update LIVE tab
-  $('pmVal').textContent  = pm25;
-  $('v1').textContent     = pm1;
-  $('v10').textContent    = pm10;
-  $('vCount').textContent = sampleCount;
-  if (pm25 > peakPm25) { peakPm25 = pm25; $('vPeak').textContent = peakPm25; $('mPeak').textContent = peakPm25; }
-
-  const [col,name,sub,breathSec,haloS] = aqi(pm25);
-  document.documentElement.style.setProperty('--aqi',    col);
-  document.documentElement.style.setProperty('--halo',   `rgba(${rgb(col)},.10)`);
-  document.documentElement.style.setProperty('--halo-s', haloS);
-  document.documentElement.style.setProperty('--breath', breathSec+'s');
-  $('catName').textContent = name;
-  $('catSub').textContent  = sub;
-
-  // record point
-  const pt = { t:Date.now(), lat:lastPos?.lat??null, lng:lastPos?.lng??null, pm1, pm25, pm10 };
-  track.push(pt);
-
-  // distance
-  if (pt.lat && lastMapPt?.lat) {
-    const d = hav(lastMapPt.lat,lastMapPt.lng, pt.lat,pt.lng);
-    if (d > 3) { totalDist += d; $('mDist').textContent = fmtDist(totalDist); }
+function startTrip(){
+  if(track.length>0){
+    if(!confirm('Start a new trip?\nCurrent track will be cleared.')) return;
+    doClean();
   }
+  recording=true;
+  startTime=Date.now();
+  if(timerIv) clearInterval(timerIv);
+  timerIv=setInterval(()=>{
+    const s=Math.floor((Date.now()-startTime)/1000);
+    $('mTime').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  },1000);
+  updateRecUI();
+}
 
-  // map: draw segment, pan, check peak
-  if (mapReady && pt.lat) {
-    drawSeg(lastMapPt, pt);
-    leafMap.panTo([pt.lat, pt.lng]);
+function stopTrip(){
+  recording=false;
+  if(timerIv){ clearInterval(timerIv); timerIv=null; }
+  updateRecUI();
+}
+
+function clearTrip(){
+  if(recording){ stopTrip(); }
+  if(track.length===0) return;
+  if(!confirm('Clear current trip data?')) return;
+  doClean();
+}
+
+function doClean(){
+  // remove map layers (keep tiles + posMarker)
+  if(mapReady){
+    peakPts.forEach(p=>leafMap.removeLayer(p.marker));
+    leafMap.eachLayer(l=>{
+      if(l instanceof L.Polyline || l instanceof L.CircleMarker) leafMap.removeLayer(l);
+    });
+  }
+  track=[];peakPts=[];totalDist=0;peakPm25=0;sampleCount=0;lastMapPt=null;
+  startTime=null;
+  if(timerIv){clearInterval(timerIv);timerIv=null;}
+  $('mDist').textContent='0 m';
+  $('mTime').textContent='00:00';
+  $('mPeak').textContent='––';
+  $('vPeak').textContent='––';
+  $('vCount').textContent='0';
+  updateRecUI();
+}
+
+function updateRecUI(){
+  const btn=$('recBtn');
+  if(recording){
+    btn.innerHTML='<span class="rec-dot"></span>STOP TRIP';
+    btn.classList.add('recording');
+  } else {
+    btn.innerHTML='⏺ START TRIP';
+    btn.classList.remove('recording');
+  }
+  $('expBtn').disabled = track.length===0;
+}
+
+// ── GPS ─────────────────────────────────────────────────────
+if('geolocation' in navigator){
+  navigator.geolocation.watchPosition(pos=>{
+    const{latitude:lat,longitude:lng}=pos.coords;
+    lastPos={lat,lng};
+    $('mGps').textContent=lat.toFixed(4)+', '+lng.toFixed(4);
+    if(mapReady) movePos(lat,lng,!posMarker);
+  },()=>{ $('mGps').textContent='NO FIX'; },
+  {enableHighAccuracy:true,maximumAge:2000,timeout:10000});
+}
+
+// ── Sample handler ──────────────────────────────────────────
+function onSample(pm1,pm25,pm10){
+  // always update LIVE display regardless of recording state
+  $('pmVal').textContent=pm25;
+  $('v1').textContent=pm1;
+  $('v10').textContent=pm10;
+  sampleCount++;
+  $('vCount').textContent=sampleCount;
+  if(pm25>peakPm25){ peakPm25=pm25; $('vPeak').textContent=peakPm25; $('mPeak').textContent=peakPm25; }
+
+  const[col,name,sub,breathSec,haloS]=aqi(pm25);
+  document.documentElement.style.setProperty('--aqi',col);
+  document.documentElement.style.setProperty('--halo',`rgba(${rgb(col)},.10)`);
+  document.documentElement.style.setProperty('--halo-s',haloS);
+  document.documentElement.style.setProperty('--breath',breathSec+'s');
+  $('catName').textContent=name;
+  $('catSub').textContent=sub;
+
+  // only add to track + map if recording
+  if(!recording) return;
+
+  const pt={t:Date.now(),lat:lastPos?.lat??null,lng:lastPos?.lng??null,pm1,pm25,pm10};
+  track.push(pt);
+  $('expBtn').disabled=false;
+
+  if(pt.lat&&lastMapPt?.lat){
+    const d=hav(lastMapPt.lat,lastMapPt.lng,pt.lat,pt.lng);
+    if(d>3){ totalDist+=d; $('mDist').textContent=fmtDist(totalDist); }
+  }
+  if(mapReady&&pt.lat){
+    drawSeg(lastMapPt,pt);
+    leafMap.panTo([pt.lat,pt.lng]);
     checkPeak(pt);
   }
-  if (pt.lat) lastMapPt = pt;
+  if(pt.lat) lastMapPt=pt;
 
-  // alert
-  const thr = parseFloat($('thr').value) || 35;
-  if (pm25 >= thr && Date.now()-lastAlert > 4000) {
-    lastAlert = Date.now();
-    alert(col);
-  }
+  // alert threshold
+  const thr=parseFloat($('thr').value)||35;
+  if(pm25>=thr&&Date.now()-lastAlert>4000){ lastAlert=Date.now(); doAlert(col); }
 }
 
-function alert(col) {
-  const f = $('flash');
-  f.style.background = col;
-  f.classList.add('on');
-  setTimeout(() => f.classList.remove('on'), 160);
-  try {
-    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.type = 'sine'; o.frequency.value = 880;
-    o.connect(g); g.connect(audioCtx.destination);
-    g.gain.setValueAtTime(.001, audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(.35, audioCtx.currentTime+.03);
-    g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime+.5);
-    o.start(); o.stop(audioCtx.currentTime+.51);
-  } catch(e){}
-  if (cmdChar) cmdChar.writeValue(new Uint8Array([0x01])).catch(()=>{});
+function doAlert(col){
+  const f=$('flash');
+  f.style.background=col; f.classList.add('on');
+  setTimeout(()=>f.classList.remove('on'),160);
+  try{
+    audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';o.frequency.value=880;
+    o.connect(g);g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(.001,audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.35,audioCtx.currentTime+.03);
+    g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.5);
+    o.start();o.stop(audioCtx.currentTime+.51);
+  }catch(e){}
+  if(cmdChar) cmdChar.writeValue(new Uint8Array([0x01])).catch(()=>{});
 }
 
-// ─── BLE ────────────────────────────────────────────────────
-async function connect() {
-  if (!navigator.bluetooth) { $('noble').classList.add('show'); return; }
-  try { audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); } catch(e){}
-
-  $('sTxt').textContent  = 'SCANNING…';
-  $('btnCon').textContent = 'SCANNING…';
-
-  try {
-    const dev = await navigator.bluetooth.requestDevice({ filters:[{services:[SVC]}], optionalServices:[SVC] });
-    dev.addEventListener('gattserverdisconnected', onDisc);
-    const srv = await dev.gatt.connect();
-    const svc = await srv.getPrimaryService(SVC);
-    const pmC = await svc.getCharacteristic(PM);
-    try { cmdChar = await svc.getCharacteristic(CMD); } catch(e){ cmdChar=null; }
-
-    pmC.addEventListener('characteristicvaluechanged', e => {
-      const d = e.target.value;
-      onSample(d.getUint16(0,true), d.getUint16(2,true), d.getUint16(4,true));
+// ── BLE ─────────────────────────────────────────────────────
+async function connect(){
+  if(!navigator.bluetooth){ $('noble').classList.add('show'); return; }
+  try{ audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); }catch(e){}
+  $('sTxt').textContent='SCANNING…';
+  $('btnCon').textContent='SCANNING…';
+  try{
+    const dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}],optionalServices:[SVC]});
+    dev.addEventListener('gattserverdisconnected',onDisc);
+    const srv=await dev.gatt.connect();
+    const svc=await srv.getPrimaryService(SVC);
+    const pmC=await svc.getCharacteristic(PM);
+    try{cmdChar=await svc.getCharacteristic(CMD);}catch(e){cmdChar=null;}
+    pmC.addEventListener('characteristicvaluechanged',e=>{
+      const d=e.target.value;
+      onSample(d.getUint16(0,true),d.getUint16(2,true),d.getUint16(4,true));
     });
     await pmC.startNotifications();
-
     $('dot').classList.add('on');
-    $('sTxt').textContent   = dev.name || 'AirWear';
-    $('btnCon').textContent  = 'CONNECTED';
-    $('btnCon').style.opacity = '.6';
-    $('btnCon').style.cursor  = 'default';
-  } catch(err) {
-    $('sTxt').textContent   = 'FAILED';
-    $('btnCon').textContent  = 'RETRY';
+    $('sTxt').textContent=dev.name||'AirWear';
+    $('btnCon').textContent='CONNECTED';
+    $('btnCon').style.opacity='.6';
+    $('btnCon').style.cursor='default';
+  }catch(err){
+    $('sTxt').textContent='FAILED';
+    $('btnCon').textContent='RETRY';
   }
 }
-
-function onDisc() {
+function onDisc(){
+  if(recording) stopTrip();
   $('dot').classList.remove('on');
-  $('sTxt').textContent   = 'DISCONNECTED';
-  $('btnCon').textContent  = 'RECONNECT';
-  $('btnCon').style.opacity = '1';
-  $('btnCon').style.cursor  = 'pointer';
-  cmdChar = null;
+  $('sTxt').textContent='DISCONNECTED';
+  $('btnCon').textContent='RECONNECT';
+  $('btnCon').style.opacity='1';
+  $('btnCon').style.cursor='pointer';
+  cmdChar=null;
 }
+$('btnCon').addEventListener('click',()=>{ if($('btnCon').textContent!=='CONNECTED') connect(); });
 
-$('btnCon').addEventListener('click', () => {
-  if ($('btnCon').textContent !== 'CONNECTED') connect();
-});
-
-// ─── Export ─────────────────────────────────────────────────
-function exportData() {
-  if (!track.length) { window.alert('No data logged yet.'); return; }
-  const date = new Date().toISOString().slice(0,10);
-
-  // CSV
-  const csv = 'timestamp,iso,lat,lng,pm1,pm25,pm10\n' +
-    track.map(r => [r.t, new Date(r.t).toISOString(),
-      r.lat??'', r.lng??'', r.pm1, r.pm25, r.pm10].join(',')).join('\n');
-  dl(csv, `airwear-${date}.csv`, 'text/csv');
-
-  // GeoJSON
-  const fc = { type:'FeatureCollection', features: track
-    .filter(r => r.lat !== null)
-    .map(r => ({ type:'Feature',
-      geometry:{ type:'Point', coordinates:[r.lng,r.lat] },
-      properties:{ pm25:r.pm25, pm1:r.pm1, pm10:r.pm10,
-                   time:new Date(r.t).toISOString() }
-    }))
-  };
-  dl(JSON.stringify(fc,null,2), `airwear-${date}.geojson`, 'application/geo+json');
+// ── Export ───────────────────────────────────────────────────
+function exportData(){
+  if(!track.length){ window.alert('No trip data to export.'); return; }
+  const date=new Date().toISOString().slice(0,10);
+  const csv='timestamp,iso,lat,lng,pm1,pm25,pm10\n'+
+    track.map(r=>[r.t,new Date(r.t).toISOString(),r.lat??'',r.lng??'',r.pm1,r.pm25,r.pm10].join(',')).join('\n');
+  dl(csv,`airwear-${date}.csv`,'text/csv');
+  const fc={type:'FeatureCollection',features:track.filter(r=>r.lat!==null).map(r=>({
+    type:'Feature',geometry:{type:'Point',coordinates:[r.lng,r.lat]},
+    properties:{pm25:r.pm25,pm1:r.pm1,pm10:r.pm10,time:new Date(r.t).toISOString()}
+  }))};
+  dl(JSON.stringify(fc,null,2),`airwear-${date}.geojson`,'application/geo+json');
 }
-function dl(text, name, type) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text],{type}));
-  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+function dl(text,name,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type}));
+  a.download=name; document.body.appendChild(a); a.click(); a.remove();
 }
 </script>
 </body>
