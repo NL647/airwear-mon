@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{
-  --bg:#F4F5F7;--card:#FFFFFF;--ink:#111827;--dim:#9CA3AF;--line:#E5E7EB;
+  --bg:#F4F5F7;--card:#FFFFFF;--ink:#111827;--dim:#64748B;--line:#E5E7EB;
   --aqi:#059669;--halo:rgba(5,150,105,.08);--halo-s:.3;--breath:3.5s;
   --fn:'Barlow Condensed',sans-serif;--fu:'Barlow',system-ui,sans-serif;
 }
@@ -59,8 +59,8 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 .cat{margin-top:16px;z-index:1;text-align:center;}
 .cat-name{font-family:var(--fn);font-weight:700;font-size:20px;letter-spacing:.1em;
   color:var(--aqi);transition:color .5s;text-transform:uppercase;}
-.cat-sub{font-size:11px;color:var(--dim);letter-spacing:.12em;
-  text-transform:uppercase;margin-top:3px;}
+.cat-sub{font-size:11px;color:var(--aqi);opacity:.65;letter-spacing:.12em;
+  text-transform:uppercase;margin-top:3px;transition:color .5s;}
 .substats{display:flex;border-top:1px solid var(--line);background:var(--card);flex-shrink:0;}
 .ss{flex:1;padding:12px 0;text-align:center;border-right:1px solid var(--line);}
 .ss:last-child{border-right:none;}
