@@ -107,7 +107,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 .leaflet-container{font-family:var(--fu)!important;}
 
 /* fit-route FAB only */
-.fab{position:absolute;bottom:12px;right:10px;z-index:500;
+.fab{position:absolute;top:10px;right:10px;z-index:500;
   width:40px;height:40px;border-radius:9px;background:var(--card);
   border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
   font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);}
@@ -232,6 +232,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   <div class="recbar">
     <button class="rec-btn" id="recBtn" onclick="toggleRec()">⏺ START TRIP</button>
     <button class="act-btn" id="expBtn" onclick="exportData()" disabled>↓ EXPORT</button>
+    <button class="act-btn" id="uplBtn" onclick="uploadTrip()" disabled>☁ UPLOAD</button>
     <button class="act-btn" id="clrBtn" onclick="clearTrip()" style="padding:13px 12px;">✕</button>
   </div>
 
@@ -428,6 +429,10 @@ function startTrip(){
   }
   recording=true;
   startTime=Date.now();
+  // AirWear community upload: stable id so retries are idempotent
+  clientTrackId = (crypto.randomUUID ? crypto.randomUUID() :
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+      const r=Math.random()*16|0, v=c==='x'?r:(r&0x3|0x8); return v.toString(16);}));
   acquireWakeLock();
   if(timerIv) clearInterval(timerIv);
   timerIv=setInterval(()=>{
@@ -480,6 +485,7 @@ function updateRecUI(){
     btn.classList.remove('recording');
   }
   $('expBtn').disabled = track.length===0;
+  $('uplBtn').disabled = track.length===0;
 }
 
 // ── GPS ─────────────────────────────────────────────────────
@@ -607,6 +613,69 @@ function dl(text,name,type){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([text],{type}));
   a.download=name; document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ── AirWear community upload ────────────────────────────────
+let clientTrackId = null;
+
+function _awSettings(){
+  let base = localStorage.getItem('aw_api_base') || '';
+  let key  = localStorage.getItem('aw_api_key')  || '';
+  if(!base){
+    base = prompt('AirWear server (e.g. https://airwear.example.com)', 'https://airwear.neotiq.tools') || '';
+    if(base){ base = base.replace(/\/$/,''); localStorage.setItem('aw_api_base', base); }
+  }
+  if(!key){
+    key = prompt('Paste your device API key (awk_…)') || '';
+    if(key){ localStorage.setItem('aw_api_key', key); }
+  }
+  return {base, key};
+}
+
+async function uploadTrip(){
+  if(!track.length){ alert('No trip to upload.'); return; }
+  const {base, key} = _awSettings();
+  if(!base || !key){ return; }
+
+  const startedAt = new Date(track[0].t).toISOString();
+  const endedAt   = new Date(track[track.length-1].t).toISOString();
+  const payload = {
+    client_track_id: clientTrackId,
+    started_at: startedAt,
+    ended_at: endedAt,
+    distance_m: Math.round(totalDist || 0),
+    readings: track.map(r => ({
+      t: new Date(r.t).toISOString(),
+      lat: r.lat,
+      lng: r.lng,
+      pm1: r.pm1, pm25: r.pm25, pm10: r.pm10,
+    })),
+  };
+
+  const btn = $('uplBtn');
+  btn.disabled = true;
+  btn.textContent = '… UPLOADING';
+  try{
+    const r = await fetch(base + '/api/v1/trips', {
+      method: 'POST',
+      headers: {'content-type':'application/json', 'x-device-key': key},
+      body: JSON.stringify(payload),
+    });
+    const body = await r.json().catch(()=>({}));
+    if(!r.ok){
+      alert('Upload failed (' + r.status + '): ' + (body.detail || 'unknown error'));
+      btn.textContent = '☁ UPLOAD';
+      btn.disabled = false;
+      return;
+    }
+    btn.textContent = body.idempotent ? '✓ ALREADY SENT' : '✓ UPLOADED';
+    // Keep the button disabled — uploading the same track twice is just retry,
+    // and the server is idempotent for that anyway.
+  } catch(err){
+    alert('Network error: ' + err.message);
+    btn.textContent = '☁ UPLOAD';
+    btn.disabled = false;
+  }
 }
 </script>
 </body>
