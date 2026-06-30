@@ -101,6 +101,28 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 .act-btn:active{background:var(--bg);}
 .act-btn:disabled{opacity:.35;cursor:default;}
 
+/* ── Capture mode toggle ─────────────────────────────────── */
+.modebar{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 12px 0 12px;
+  background:var(--card);flex-shrink:0;
+}
+.mode-lbl{
+  font-family:var(--fn);font-size:9px;letter-spacing:.2em;
+  color:var(--dim);text-transform:uppercase;flex-shrink:0;
+}
+.mode-tabs{
+  display:flex;background:var(--bg);border-radius:7px;padding:2px;gap:2px;flex:1;
+}
+.mode-tab{
+  flex:1;font-family:var(--fn);font-weight:700;font-size:11px;
+  letter-spacing:.06em;padding:6px 8px;border:none;border-radius:5px;
+  background:transparent;color:var(--dim);cursor:pointer;
+  text-transform:uppercase;transition:.15s;
+}
+.mode-tab.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.mode-tab:disabled{opacity:.4;cursor:default;}
+
 /* map */
 .mapwrap{flex:1;position:relative;min-height:0;display:flex;flex-direction:column;}
 #map{flex:1;}
@@ -228,6 +250,15 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
     <div class="ms"><div class="ms-k">PEAK 2.5</div><div class="ms-v hi" id="mPeak">––</div></div>
   </div>
 
+  <!-- ── capture-mode toggle (locked while recording) ── -->
+  <div class="modebar">
+    <div class="mode-lbl">CAPTURE</div>
+    <div class="mode-tabs">
+      <button class="mode-tab on" data-mode="moving" onclick="setMode('moving')">🚲 MOVING · 5s</button>
+      <button class="mode-tab"    data-mode="static" onclick="setMode('static')">🧍 STATIC · 30s</button>
+    </div>
+  </div>
+
   <!-- ── recording action bar ── -->
   <div class="recbar">
     <button class="rec-btn" id="recBtn" onclick="toggleRec()">⏺ START TRIP</button>
@@ -286,6 +317,23 @@ let leafMap    = null;
 let posMarker  = null;
 let mapReady   = false;
 let wakeLock   = null;
+
+// ── Capture mode (set by the toggle above the recbar) ─────
+// Sample arrival from BLE is firmware-driven (~1-2s). The live readout
+// always updates, but the recorded track[] only takes a sample every
+// CAPTURE_INTERVAL_MS[mode] — keeps static sessions from clogging the
+// hex aggregator with identical readings.
+const CAPTURE_INTERVAL_MS = { moving: 5000, static: 30000 };
+let captureMode  = 'moving';
+let lastTrackedAt = 0;
+function setMode(m){
+  if(recording) return;                       // locked mid-trip
+  if(m !== 'moving' && m !== 'static') return;
+  captureMode = m;
+  document.querySelectorAll('.mode-tab').forEach(b=>{
+    b.classList.toggle('on', b.dataset.mode === m);
+  });
+}
 
 // ── AQI ────────────────────────────────────────────────────
 function aqi(pm){
@@ -429,6 +477,7 @@ function startTrip(){
   }
   recording=true;
   startTime=Date.now();
+  lastTrackedAt=0;          // first sample after START is always recorded
   // AirWear community upload: stable id so retries are idempotent
   clientTrackId = (crypto.randomUUID ? crypto.randomUUID() :
     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
@@ -465,7 +514,7 @@ function doClean(){
     });
   }
   track=[];peakPts=[];totalDist=0;peakPm25=0;sampleCount=0;lastMapPt=null;
-  startTime=null;
+  startTime=null;lastTrackedAt=0;
   if(timerIv){clearInterval(timerIv);timerIv=null;}
   $('mDist').textContent='0 m';
   $('mTime').textContent='00:00';
@@ -486,6 +535,7 @@ function updateRecUI(){
   }
   $('expBtn').disabled = track.length===0;
   $('uplBtn').disabled = track.length===0;
+  document.querySelectorAll('.mode-tab').forEach(b=>{ b.disabled = recording; });
 }
 
 // ── GPS ─────────────────────────────────────────────────────
@@ -520,7 +570,12 @@ function onSample(pm1,pm25,pm10){
   // only add to track + map if recording
   if(!recording) return;
 
-  const pt={t:Date.now(),lat:lastPos?.lat??null,lng:lastPos?.lng??null,pm1,pm25,pm10};
+  // capture-mode decimation: silently skip samples inside the interval window
+  const _now = Date.now();
+  if(_now - lastTrackedAt < CAPTURE_INTERVAL_MS[captureMode]) return;
+  lastTrackedAt = _now;
+
+  const pt={t:_now,lat:lastPos?.lat??null,lng:lastPos?.lng??null,pm1,pm25,pm10};
   track.push(pt);
   $('expBtn').disabled=false;
 
