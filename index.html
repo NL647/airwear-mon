@@ -222,7 +222,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 
   <!-- stats strip -->
   <div class="mstats">
-    <div class="ms"><div class="ms-k">GPS</div><div class="ms-v" id="mGps" style="font-size:11px">NO FIX</div></div>
+    <div class="ms"><div class="ms-k">GPS <span id="wakeIcon" style="opacity:0;transition:opacity .3s;">●</span></div><div class="ms-v" id="mGps" style="font-size:11px">NO FIX</div></div>
     <div class="ms"><div class="ms-k">DIST</div><div class="ms-v" id="mDist">0 m</div></div>
     <div class="ms"><div class="ms-k">TIME</div><div class="ms-v" id="mTime">00:00</div></div>
     <div class="ms"><div class="ms-k">PEAK 2.5</div><div class="ms-v hi" id="mPeak">––</div></div>
@@ -284,6 +284,7 @@ let timerIv    = null;
 let leafMap    = null;
 let posMarker  = null;
 let mapReady   = false;
+let wakeLock   = null;
 
 // ── AQI ────────────────────────────────────────────────────
 function aqi(pm){
@@ -384,7 +385,37 @@ function hav(la1,lo1,la2,lo2){
 }
 const fmtDist=m=>m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km';
 
-// ── Recording controls ──────────────────────────────────────
+// ── Screen wake lock — keeps screen on while a trip is recording ──
+// iOS suspends Web Bluetooth when the screen locks, so during an
+// active trip we ask the OS to keep the display awake.
+async function acquireWakeLock(){
+  if(!('wakeLock' in navigator)) return;     // unsupported browser — silently skip
+  try{
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', ()=>{ wakeLock = null; updateWakeIcon(); });
+    updateWakeIcon();
+  }catch(e){ wakeLock = null; }              // permission denied / low battery — skip
+}
+function releaseWakeLock(){
+  if(wakeLock){ wakeLock.release(); wakeLock = null; }
+  updateWakeIcon();
+}
+function updateWakeIcon(){
+  const el = $('wakeIcon');
+  if(!el) return;
+  el.style.opacity = wakeLock ? '1' : '0';
+  el.style.color = 'var(--aqi)';
+}
+// iOS releases the lock if the tab is hidden even briefly (app switch,
+// notification pull-down); re-acquire automatically when it comes back
+// to the foreground, but only while a trip is still recording.
+document.addEventListener('visibilitychange', async ()=>{
+  if(document.visibilityState === 'visible' && recording && !wakeLock){
+    await acquireWakeLock();
+  }
+});
+
+
 function toggleRec(){
   if(!recording) startTrip();
   else           stopTrip();
@@ -397,6 +428,7 @@ function startTrip(){
   }
   recording=true;
   startTime=Date.now();
+  acquireWakeLock();
   if(timerIv) clearInterval(timerIv);
   timerIv=setInterval(()=>{
     const s=Math.floor((Date.now()-startTime)/1000);
@@ -407,6 +439,7 @@ function startTrip(){
 
 function stopTrip(){
   recording=false;
+  releaseWakeLock();
   if(timerIv){ clearInterval(timerIv); timerIv=null; }
   updateRecUI();
 }
