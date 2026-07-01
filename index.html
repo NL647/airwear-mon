@@ -193,6 +193,32 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   max-width:300px;text-align:center;}
 .noble-c h2{font-size:18px;margin-bottom:10px;}
 .noble-c p{font-size:14px;color:var(--dim);line-height:1.55;}
+
+/* settings gear in topbar */
+.gearbtn{
+  background:var(--bg);border:none;width:32px;height:32px;
+  border-radius:8px;font-size:16px;cursor:pointer;color:var(--dim);
+  margin-left:8px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.gearbtn:active{background:var(--line);}
+
+/* settings modal form */
+.set-c{text-align:left!important;max-width:340px;width:100%;}
+.set-l{display:block;font-family:var(--fn);font-size:10px;letter-spacing:.18em;
+  color:var(--dim);text-transform:uppercase;margin:12px 0 4px;}
+.set-i{width:100%;padding:9px 10px;border:1.5px solid var(--line);
+  border-radius:8px;font-family:ui-monospace,Menlo,monospace;font-size:13px;
+  background:var(--bg);color:var(--ink);}
+.set-i:focus{outline:none;border-color:var(--aqi);background:#fff;}
+.set-actions{display:flex;gap:6px;margin-top:18px;flex-wrap:wrap;}
+.set-btn{flex:1;padding:9px 8px;border:1.5px solid var(--line);
+  background:var(--card);border-radius:8px;font-family:var(--fn);font-weight:700;
+  font-size:12px;letter-spacing:.08em;cursor:pointer;color:var(--ink);
+  text-transform:uppercase;white-space:nowrap;}
+.set-btn.primary{background:var(--aqi);color:#fff;border-color:var(--aqi);}
+.set-btn.danger{color:#DC2626;border-color:#FECACA;}
+.set-hint{font-size:11px;color:var(--dim);line-height:1.45;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -203,6 +229,34 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
     <h2>Open in Bluefy</h2>
     <p>Web Bluetooth is not available here.<br><br>
     Open this page in <strong>Bluefy</strong> (App Store) to use Web Bluetooth on iPhone.</p>
+  </div>
+</div>
+
+<!-- ── Upload settings modal ── -->
+<div class="noble" id="settingsModal">
+  <div class="noble-c set-c">
+    <h2 style="text-align:center;">Upload settings</h2>
+    <p class="set-hint" style="text-align:center;margin-bottom:6px;">
+      Stored on this device only.
+    </p>
+
+    <label class="set-l" for="setBase">Server URL</label>
+    <input class="set-i" id="setBase" type="url" inputmode="url" autocomplete="off"
+           autocapitalize="off" spellcheck="false"
+           placeholder="https://airwear.example.com"/>
+    <div class="set-hint">No trailing slash. Use the LAN IP (e.g. http://192.168.x.x:8000) during local testing.</div>
+
+    <label class="set-l" for="setKey">Device API key</label>
+    <input class="set-i" id="setKey" type="text" autocomplete="off"
+           autocapitalize="off" spellcheck="false"
+           placeholder="awk_…"/>
+    <div class="set-hint">Get this from the dashboard → Devices → Rotate key.</div>
+
+    <div class="set-actions">
+      <button class="set-btn"        onclick="closeSettings()">Cancel</button>
+      <button class="set-btn danger" onclick="clearSettings()">Clear</button>
+      <button class="set-btn primary" onclick="saveSettings()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -217,6 +271,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
     <div class="dot" id="dot"></div>
     <span id="sTxt">OFFLINE</span>
   </div>
+  <button class="gearbtn" id="gearBtn" onclick="openSettings()" aria-label="Upload settings" title="Upload settings">⚙</button>
 </div>
 
 <!-- ── LIVE PANEL ─────────────────────────────────────────── -->
@@ -652,22 +707,48 @@ function onDisc(){
 $('btnCon').addEventListener('click',()=>{ if($('btnCon').textContent!=='CONNECTED') connect(); });
 
 // ── Export ───────────────────────────────────────────────────
-function exportData(){
+// Bluefy / mobile Safari (WKWebView) ignores <a download> on blob URLs,
+// so we prefer navigator.share({files:[…]}) — pops the native share
+// sheet with Save to Files / AirDrop / Mail / etc. Desktop browsers
+// fall back to the classic anchor-click pattern.
+async function exportData(){
   if(!track.length){ window.alert('No trip data to export.'); return; }
   const date=new Date().toISOString().slice(0,10);
-  const csv='timestamp,iso,lat,lng,pm1,pm25,pm10\n'+
+
+  const csvText='timestamp,iso,lat,lng,pm1,pm25,pm10\n'+
     track.map(r=>[r.t,new Date(r.t).toISOString(),r.lat??'',r.lng??'',r.pm1,r.pm25,r.pm10].join(',')).join('\n');
-  dl(csv,`airwear-${date}.csv`,'text/csv');
+  const csvFile=new File([csvText], `airwear-${date}.csv`, {type:'text/csv'});
+
   const fc={type:'FeatureCollection',features:track.filter(r=>r.lat!==null).map(r=>({
     type:'Feature',geometry:{type:'Point',coordinates:[r.lng,r.lat]},
     properties:{pm25:r.pm25,pm1:r.pm1,pm10:r.pm10,time:new Date(r.t).toISOString()}
   }))};
-  dl(JSON.stringify(fc,null,2),`airwear-${date}.geojson`,'application/geo+json');
+  const geoFile=new File([JSON.stringify(fc,null,2)], `airwear-${date}.geojson`, {type:'application/geo+json'});
+
+  const files=[csvFile, geoFile];
+
+  // Prefer Web Share API on mobile — one share sheet, both files.
+  if(navigator.canShare && navigator.canShare({files})){
+    try{
+      await navigator.share({files, title:`AirWear trip ${date}`, text:`AirWear trip ${date}`});
+      return;
+    }catch(e){
+      if(e.name==='AbortError') return;      // user tapped Cancel — no fallback
+      // Any other share failure → fall through to download links
+    }
+  }
+
+  // Desktop fallback: two anchor-clicks
+  dl(csvFile);
+  dl(geoFile);
 }
-function dl(text,name,type){
+
+function dl(file){
+  const url=URL.createObjectURL(file);
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([text],{type}));
-  a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  a.href=url; a.download=file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
 
 // ── AirWear community upload ────────────────────────────────
@@ -686,6 +767,34 @@ function _awSettings(){
   }
   return {base, key};
 }
+
+// ── Upload settings modal ─────────────────────────────────
+function openSettings(){
+  $('setBase').value = localStorage.getItem('aw_api_base') || '';
+  $('setKey').value  = localStorage.getItem('aw_api_key')  || '';
+  $('settingsModal').classList.add('show');
+}
+function closeSettings(){
+  $('settingsModal').classList.remove('show');
+}
+function saveSettings(){
+  const base = $('setBase').value.trim().replace(/\/$/,'');
+  const key  = $('setKey').value.trim();
+  if(base) localStorage.setItem('aw_api_base', base); else localStorage.removeItem('aw_api_base');
+  if(key)  localStorage.setItem('aw_api_key',  key ); else localStorage.removeItem('aw_api_key');
+  closeSettings();
+}
+function clearSettings(){
+  if(!confirm('Clear server URL and device key from this device?')) return;
+  localStorage.removeItem('aw_api_base');
+  localStorage.removeItem('aw_api_key');
+  $('setBase').value = '';
+  $('setKey').value  = '';
+}
+// Click outside the card closes the modal
+document.getElementById('settingsModal').addEventListener('click', e => {
+  if(e.target.id === 'settingsModal') closeSettings();
+});
 
 async function uploadTrip(){
   if(!track.length){ alert('No trip to upload.'); return; }
