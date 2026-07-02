@@ -85,9 +85,9 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0;
 }
 .rec-btn{
-  flex:1;padding:13px 10px;border:none;border-radius:10px;
+  flex:0 0 130px;padding:13px 10px;border:none;border-radius:10px;
   background:var(--aqi);color:#fff;font-family:var(--fn);
-  font-weight:700;font-size:15px;letter-spacing:.1em;
+  font-weight:700;font-size:14px;letter-spacing:.08em;
   text-transform:uppercase;cursor:pointer;transition:background .25s,transform .1s;
 }
 .rec-btn:active{transform:scale(.97);}
@@ -219,6 +219,33 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 .set-btn.primary{background:var(--aqi);color:#fff;border-color:var(--aqi);}
 .set-btn.danger{color:#DC2626;border-color:#FECACA;}
 .set-hint{font-size:11px;color:var(--dim);line-height:1.45;margin-top:4px;}
+.set-c{max-height:80vh;overflow-y:auto;}
+.set-section{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
+.set-section:first-of-type{border-top:none;padding-top:0;margin-top:0;}
+.set-section-h{font-family:var(--fn);font-weight:700;font-size:12px;letter-spacing:.14em;
+  color:var(--ink);text-transform:uppercase;margin-bottom:4px;display:flex;
+  align-items:center;justify-content:space-between;}
+.set-section-h .badge{font-size:9px;letter-spacing:.1em;padding:2px 7px;
+  border-radius:99px;background:var(--bg);color:var(--dim);font-weight:600;}
+.set-section-h .badge.ok{background:#DCFCE7;color:#059669;}
+.set-section-h .badge.warn{background:#FEF3C7;color:#B45309;}
+.set-row{display:flex;gap:8px;}
+.set-row > div{flex:1;}
+.set-mode-tabs{display:flex;background:var(--bg);border-radius:8px;padding:3px;gap:2px;margin-top:6px;}
+.set-mode-tab{flex:1;font-family:var(--fn);font-weight:700;font-size:11px;
+  letter-spacing:.06em;padding:8px 4px;border:none;border-radius:6px;
+  background:transparent;color:var(--dim);cursor:pointer;text-transform:uppercase;transition:.15s;}
+.set-mode-tab.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.set-inline-btn{padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;
+  background:var(--card);font-family:var(--fn);font-weight:700;font-size:11px;
+  letter-spacing:.06em;cursor:pointer;color:var(--ink);text-transform:uppercase;white-space:nowrap;}
+.set-inline-btn:disabled{opacity:.4;cursor:default;}
+.set-inline-btn.primary{background:var(--aqi);color:#fff;border-color:var(--aqi);}
+.set-status{font-family:ui-monospace,Menlo,monospace;font-size:11px;
+  padding:6px 10px;border-radius:6px;background:var(--bg);color:var(--dim);
+  margin-top:6px;min-height:16px;word-break:break-all;}
+.set-status.ok{background:#DCFCE7;color:#059669;}
+.set-status.err{background:#FEE2E2;color:#DC2626;}
 </style>
 </head>
 <body>
@@ -232,30 +259,98 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   </div>
 </div>
 
-<!-- ── Upload settings modal ── -->
+<!-- ── Settings modal ── -->
 <div class="noble" id="settingsModal">
   <div class="noble-c set-c">
-    <h2 style="text-align:center;">Upload settings</h2>
-    <p class="set-hint" style="text-align:center;margin-bottom:6px;">
-      Stored on this device only.
-    </p>
+    <h2 style="text-align:center;margin-bottom:14px;">Settings</h2>
 
-    <label class="set-l" for="setBase">Server URL</label>
-    <input class="set-i" id="setBase" type="url" inputmode="url" autocomplete="off"
-           autocapitalize="off" spellcheck="false"
-           placeholder="https://airwear.example.com"/>
-    <div class="set-hint">No trailing slash. Use the LAN IP (e.g. http://192.168.x.x:8000) during local testing.</div>
+    <!-- ═══ DEVICE (BLE only) ═══ -->
+    <div class="set-section" id="devSection" style="display:none;">
+      <div class="set-section-h">
+        Device
+        <span class="badge" id="devBadge">–</span>
+      </div>
+      <p class="set-hint" id="devSerial" style="font-family:ui-monospace,Menlo,monospace;"></p>
 
-    <label class="set-l" for="setKey">Device API key</label>
-    <input class="set-i" id="setKey" type="text" autocomplete="off"
-           autocapitalize="off" spellcheck="false"
-           placeholder="awk_…"/>
-    <div class="set-hint">Get this from the dashboard → Devices → Rotate key.</div>
+      <label class="set-l">Operating mode</label>
+      <div class="set-mode-tabs">
+        <button type="button" class="set-mode-tab" data-dmode="ble"    onclick="setDevMode('ble')">📶 BLE only</button>
+        <button type="button" class="set-mode-tab" data-dmode="static" onclick="setDevMode('static')">☁ Static + BLE</button>
+      </div>
+      <div class="set-hint">In <b>Static</b>, the device also uploads to the server on its own — even without the phone. BLE remains active either way.</div>
 
-    <div class="set-actions">
-      <button class="set-btn"        onclick="closeSettings()">Cancel</button>
-      <button class="set-btn danger" onclick="clearSettings()">Clear</button>
-      <button class="set-btn primary" onclick="saveSettings()">Save</button>
+      <label class="set-l" for="dSsid">WiFi network</label>
+      <div class="set-row">
+        <div>
+          <input class="set-i" id="dSsid"  type="text" placeholder="SSID" autocapitalize="off" spellcheck="false"/>
+        </div>
+        <div>
+          <input class="set-i" id="dPass"  type="password" placeholder="Password"/>
+        </div>
+      </div>
+      <div class="set-row" style="margin-top:6px;">
+        <button class="set-inline-btn" onclick="testWifi()">🧪 Test</button>
+        <div class="set-status" id="wifiStatus" style="flex:1;">idle</div>
+      </div>
+
+      <label class="set-l" for="dServer">Server URL</label>
+      <input class="set-i" id="dServer" type="url" inputmode="url" placeholder="https://…"/>
+
+      <label class="set-l" for="dKey">Device API key</label>
+      <input class="set-i" id="dKey" type="text" placeholder="awk_…"/>
+
+      <label class="set-l">Location</label>
+      <div class="set-row">
+        <div><input class="set-i" id="dLat" type="text" placeholder="lat" inputmode="decimal"/></div>
+        <div><input class="set-i" id="dLng" type="text" placeholder="lng" inputmode="decimal"/></div>
+      </div>
+      <button class="set-inline-btn" style="margin-top:6px;width:100%;" onclick="fillLocFromPhone()">📍 Use my current location</button>
+      <div class="set-hint">Fixed coordinates for a stationary sensor (balcony, room). Phone GPS is used when you tap the button.</div>
+
+      <label class="set-l">Sampling</label>
+      <div class="set-row">
+        <div>
+          <div class="set-hint" style="margin:0 0 3px 4px;">Interval (s)</div>
+          <input class="set-i" id="dInterval" type="number" min="10" max="3600" value="60"/>
+        </div>
+        <div>
+          <div class="set-hint" style="margin:0 0 3px 4px;">Batch (readings)</div>
+          <input class="set-i" id="dBatch" type="number" min="1" max="120" value="60"/>
+        </div>
+      </div>
+      <div class="set-hint">Default 60 s × 60 = one upload per hour.</div>
+
+      <div class="set-actions">
+        <button class="set-btn danger"  onclick="deviceErase()">Erase</button>
+        <button class="set-btn"         onclick="deviceReboot()">Reboot</button>
+        <button class="set-btn primary" onclick="deviceSave()">Save to Device</button>
+      </div>
+    </div>
+
+    <!-- Shown when BLE not connected -->
+    <div class="set-section" id="devMissing">
+      <div class="set-section-h">Device <span class="badge warn">not connected</span></div>
+      <p class="set-hint">Connect over BLE (tap CONNECT below) to configure your AirWear device from here — WiFi, server, location, sampling.</p>
+    </div>
+
+    <!-- ═══ PHONE UPLOAD ═══ -->
+    <div class="set-section">
+      <div class="set-section-h">Phone upload</div>
+      <p class="set-hint" style="margin-bottom:6px;">Used when you tap ☁ UPLOAD after a phone-recorded trip. Stored on this device only.</p>
+
+      <label class="set-l" for="setBase">Server URL</label>
+      <input class="set-i" id="setBase" type="url" inputmode="url" autocomplete="off"
+             autocapitalize="off" spellcheck="false"
+             placeholder="https://airwear.example.com"/>
+      <label class="set-l" for="setKey">Device API key</label>
+      <input class="set-i" id="setKey" type="text" autocomplete="off"
+             autocapitalize="off" spellcheck="false"
+             placeholder="awk_…"/>
+      <div class="set-actions">
+        <button class="set-btn"         onclick="closeSettings()">Close</button>
+        <button class="set-btn danger"  onclick="clearSettings()">Clear</button>
+        <button class="set-btn primary" onclick="saveSettings()">Save</button>
+      </div>
     </div>
   </div>
 </div>
@@ -316,7 +411,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 
   <!-- ── recording action bar ── -->
   <div class="recbar">
-    <button class="rec-btn" id="recBtn" onclick="toggleRec()">⏺ START TRIP</button>
+    <button class="rec-btn" id="recBtn" onclick="toggleRec()">⏺ RECORD</button>
     <button class="act-btn" id="expBtn" onclick="exportData()" disabled>↓ EXPORT</button>
     <button class="act-btn" id="uplBtn" onclick="uploadTrip()" disabled>☁ UPLOAD</button>
     <button class="act-btn" id="clrBtn" onclick="clearTrip()" style="padding:13px 12px;">✕</button>
@@ -351,6 +446,7 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
 const SVC = 'a7c0aa00-7e9c-4f1a-8b2d-1f3e5c7a9b01';
 const PM  = 'a7c0aa01-7e9c-4f1a-8b2d-1f3e5c7a9b01';
 const CMD = 'a7c0aa02-7e9c-4f1a-8b2d-1f3e5c7a9b01';
+const CFG = 'a7c0aa03-7e9c-4f1a-8b2d-1f3e5c7a9b01';   // v3 device config
 
 const $ = id => document.getElementById(id);
 
@@ -367,6 +463,9 @@ let lastAlert  = 0;
 let recording  = false;
 let audioCtx   = null;
 let cmdChar    = null;
+let cfgChar    = null;    // v3 device-config char
+let deviceCfg  = null;    // last known config snapshot from device
+let wifiTestResolver = null; // Promise resolver for wifi_test round-trip
 let timerIv    = null;
 let leafMap    = null;
 let posMarker  = null;
@@ -582,10 +681,10 @@ function doClean(){
 function updateRecUI(){
   const btn=$('recBtn');
   if(recording){
-    btn.innerHTML='<span class="rec-dot"></span>STOP TRIP';
+    btn.innerHTML='<span class="rec-dot"></span>STOP';
     btn.classList.add('recording');
   } else {
-    btn.innerHTML='⏺ START TRIP';
+    btn.innerHTML='⏺ RECORD';
     btn.classList.remove('recording');
   }
   $('expBtn').disabled = track.length===0;
@@ -680,6 +779,19 @@ async function connect(){
     const svc=await srv.getPrimaryService(SVC);
     const pmC=await svc.getCharacteristic(PM);
     try{cmdChar=await svc.getCharacteristic(CMD);}catch(e){cmdChar=null;}
+
+    // v3: CFG characteristic — device settings over BLE
+    try{
+      cfgChar = await svc.getCharacteristic(CFG);
+      cfgChar.addEventListener('characteristicvaluechanged', onCfgNotify);
+      await cfgChar.startNotifications();
+      // ask device for its current config so the settings modal has fresh data
+      cfgWrite({op:'get'}).catch(()=>{});
+    }catch(e){
+      cfgChar = null;
+      console.log('[BLE] CFG char not present — older firmware');
+    }
+
     pmC.addEventListener('characteristicvaluechanged',e=>{
       const d=e.target.value;
       onSample(d.getUint16(0,true),d.getUint16(2,true),d.getUint16(4,true));
@@ -703,6 +815,8 @@ function onDisc(){
   $('btnCon').style.opacity='1';
   $('btnCon').style.cursor='pointer';
   cmdChar=null;
+  cfgChar=null;
+  deviceCfg=null;
 }
 $('btnCon').addEventListener('click',()=>{ if($('btnCon').textContent!=='CONNECTED') connect(); });
 
@@ -768,10 +882,183 @@ function _awSettings(){
   return {base, key};
 }
 
-// ── Upload settings modal ─────────────────────────────────
+// ── Device config (BLE CFG characteristic) ─────────────────
+async function cfgWrite(obj){
+  if(!cfgChar) throw new Error('CFG char not available');
+  const enc = new TextEncoder().encode(JSON.stringify(obj));
+  await cfgChar.writeValue(enc);
+}
+function onCfgNotify(evt){
+  let s;
+  try{ s = new TextDecoder().decode(evt.target.value); }catch(e){ return; }
+  let msg;
+  try{ msg = JSON.parse(s); }catch(e){ console.warn('[CFG] bad json', s); return; }
+  if(msg.ev === 'config'){
+    deviceCfg = msg;
+    renderDevCfg();
+  } else if(msg.ev === 'saved'){
+    // silent — the follow-up 'config' notify carries the fresh state
+  } else if(msg.ev === 'wifi'){
+    const st = $('wifiStatus');
+    if(msg.status === 'ok'){
+      st.textContent = '✓ Connected · ' + (msg.ip||'');
+      st.className = 'set-status ok';
+    } else {
+      st.textContent = '✗ Failed · ' + (msg.reason||'');
+      st.className = 'set-status err';
+    }
+    if(wifiTestResolver){ wifiTestResolver(msg); wifiTestResolver = null; }
+  }
+}
+function renderDevCfg(){
+  if(!deviceCfg) return;
+  $('devSection').style.display = '';
+  $('devMissing').style.display = 'none';
+  $('devSerial').textContent = deviceCfg.serial || '';
+  const badge = $('devBadge');
+  const complete = deviceCfg.ssid && deviceCfg.server && deviceCfg.hasKey;
+  if(deviceCfg.mode === 'static'){
+    badge.textContent = complete ? 'static · configured' : 'static · incomplete';
+    badge.className   = complete ? 'badge ok' : 'badge warn';
+  } else {
+    badge.textContent = 'BLE only';
+    badge.className   = 'badge';
+  }
+  document.querySelectorAll('.set-mode-tab').forEach(b=>{
+    b.classList.toggle('on', b.dataset.dmode === deviceCfg.mode);
+  });
+  // Only overwrite input fields if user isn't actively editing them
+  const focusedId = document.activeElement?.id;
+  const setIfIdle = (id, val) => { if(focusedId !== id) $(id).value = val; };
+  setIfIdle('dSsid',     deviceCfg.ssid   || '');
+  setIfIdle('dServer',   deviceCfg.server || '');
+  setIfIdle('dLat',      (deviceCfg.lat ?? 0).toFixed(6));
+  setIfIdle('dLng',      (deviceCfg.lng ?? 0).toFixed(6));
+  setIfIdle('dInterval', deviceCfg.interval || 60);
+  setIfIdle('dBatch',    deviceCfg.batch    || 60);
+  // Password field: keep it empty (device won't send it back) — user only
+  // fills it if they want to change it.
+  // API key field: same idea — only show masked hint via placeholder
+  $('dKey').placeholder = deviceCfg.hasKey ? 'awk_… (set — leave blank to keep)' : 'awk_…';
+}
+
+let pendingMode = null;   // buffered mode selection (applied on Save)
+function setDevMode(m){
+  pendingMode = m;
+  document.querySelectorAll('.set-mode-tab').forEach(b=>{
+    b.classList.toggle('on', b.dataset.dmode === m);
+  });
+}
+
+function fillLocFromPhone(){
+  if(!('geolocation' in navigator)){ alert('Geolocation not supported.'); return; }
+  navigator.geolocation.getCurrentPosition(
+    p => {
+      $('dLat').value = p.coords.latitude.toFixed(6);
+      $('dLng').value = p.coords.longitude.toFixed(6);
+    },
+    err => alert('Location error: ' + err.message),
+    { enableHighAccuracy:true, timeout:8000, maximumAge:2000 }
+  );
+}
+
+async function testWifi(){
+  if(!cfgChar){ alert('Connect to your device first.'); return; }
+  const ssid = $('dSsid').value.trim();
+  const pass = $('dPass').value;
+  if(!ssid){ alert('Enter SSID first.'); return; }
+  const st = $('wifiStatus');
+  st.textContent = 'Testing…'; st.className = 'set-status';
+  try{
+    // Push credentials first, then trigger the test
+    await cfgWrite({op:'set', ssid, ...(pass ? {pass} : {})});
+    await new Promise(r=>setTimeout(r, 400));
+    const testPromise = new Promise(res => { wifiTestResolver = res; });
+    await cfgWrite({op:'wifi_test'});
+    // 30s timeout; the device polls internally
+    const timer = setTimeout(()=>{
+      if(wifiTestResolver){ wifiTestResolver({status:'fail',reason:'no_reply'}); wifiTestResolver=null; }
+    }, 30000);
+    await testPromise;
+    clearTimeout(timer);
+  }catch(e){
+    st.textContent = 'Test failed: ' + e.message;
+    st.className = 'set-status err';
+  }
+}
+
+async function deviceSave(){
+  if(!cfgChar){ alert('Not connected.'); return; }
+  // Build the patch. Only send fields the user actually changed / filled.
+  const patch = {op:'set'};
+  const cur   = deviceCfg || {};
+  const put   = (k, v, cmp) => { if(v !== '' && v !== null && v !== undefined && v !== cmp) patch[k] = v; };
+
+  if(pendingMode && pendingMode !== cur.mode) patch.mode = pendingMode;
+
+  const ssid = $('dSsid').value.trim();
+  if(ssid && ssid !== cur.ssid) patch.ssid = ssid;
+
+  const pass = $('dPass').value;
+  if(pass) patch.pass = pass;
+
+  const server = $('dServer').value.trim().replace(/\/$/,'');
+  if(server && server !== cur.server) patch.server = server;
+
+  const key = $('dKey').value.trim();
+  if(key) patch.key = key;
+
+  const lat = parseFloat($('dLat').value);
+  const lng = parseFloat($('dLng').value);
+  if(!isNaN(lat) && lat !== cur.lat) patch.lat = lat;
+  if(!isNaN(lng) && lng !== cur.lng) patch.lng = lng;
+
+  const iv = parseInt($('dInterval').value);
+  const bc = parseInt($('dBatch').value);
+  if(iv > 0 && iv !== cur.interval) patch.interval = iv;
+  if(bc > 0 && bc !== cur.batch)    patch.batch    = bc;
+
+  const keys = Object.keys(patch).filter(k=>k!=='op');
+  if(!keys.length){ alert('Nothing to save.'); return; }
+
+  try{
+    await cfgWrite(patch);
+    // Clear password/key fields — the device now has them
+    $('dPass').value = '';
+    $('dKey').value  = '';
+    pendingMode = null;
+    // A 'config' notify from the device will refresh the UI shortly
+  }catch(e){ alert('Save failed: ' + e.message); }
+}
+
+async function deviceReboot(){
+  if(!cfgChar){ return; }
+  if(!confirm('Reboot the device? It will disconnect and come back in ~10s.')) return;
+  try{ await cfgWrite({op:'reboot'}); }catch(e){}
+}
+async function deviceErase(){
+  if(!cfgChar){ return; }
+  if(!confirm('Erase ALL device settings? This clears WiFi, server, key, and location.')) return;
+  try{ await cfgWrite({op:'erase'}); }catch(e){}
+}
+
+
 function openSettings(){
   $('setBase').value = localStorage.getItem('aw_api_base') || '';
   $('setKey').value  = localStorage.getItem('aw_api_key')  || '';
+  // Toggle device section based on whether a BLE device is connected
+  if(cfgChar){
+    $('devSection').style.display = '';
+    $('devMissing').style.display = 'none';
+    // Ask for fresh config
+    cfgWrite({op:'get'}).catch(()=>{});
+    if(deviceCfg) renderDevCfg();
+  } else {
+    $('devSection').style.display = 'none';
+    $('devMissing').style.display = '';
+  }
+  $('wifiStatus').textContent = 'idle';
+  $('wifiStatus').className   = 'set-status';
   $('settingsModal').classList.add('show');
 }
 function closeSettings(){
