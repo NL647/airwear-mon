@@ -490,6 +490,8 @@ let audioCtx   = null;
 let cmdChar    = null;
 let cfgChar    = null;    // v3 device-config char
 let deviceCfg  = null;    // last known config snapshot from device
+let wifiDevBase = null;   // HTTP base URL when connected via WiFi fallback
+let wifiPollTimer = null;
 let wifiTestResolver = null; // Promise resolver for wifi_test round-trip
 let timerIv    = null;
 let leafMap    = null;
@@ -834,16 +836,31 @@ async function connect(){
 }
 function onDisc(){
   if(recording) stopTrip();
+  cmdChar=null;
+  cfgChar=null;
+
+  // If device was on WiFi, try automatic HTTP fallback
+  const knownIp = deviceCfg && deviceCfg.wifi && deviceCfg.ip;
+  if(knownIp){
+    $('sTxt').textContent='WiFi…';
+    $('btnCon').textContent='SWITCHING';
+    wifiFallback('http://'+deviceCfg.ip);
+    return;
+  }
+
   $('dot').classList.remove('on');
   $('sTxt').textContent='DISCONNECTED';
   $('btnCon').textContent='RECONNECT';
   $('btnCon').style.opacity='1';
   $('btnCon').style.cursor='pointer';
-  cmdChar=null;
-  cfgChar=null;
   deviceCfg=null;
 }
-$('btnCon').addEventListener('click',()=>{ if($('btnCon').textContent!=='CONNECTED') connect(); });
+$('btnCon').addEventListener('click',()=>{
+  const txt=$('btnCon').textContent;
+  if(txt==='CONNECTED'||txt==='SCANNING…'||txt==='SWITCHING') return;
+  if(txt==='WIFI'){ wifiDisconnect(); return; }
+  connect();
+});
 
 // ── Export ───────────────────────────────────────────────────
 // Bluefy / mobile Safari (WKWebView) ignores <a download> on blob URLs,
@@ -996,7 +1013,7 @@ function fillLocFromPhone(){
 }
 
 async function testWifi(){
-  if(!cfgChar){ alert('Connect to your device first via BLE.'); return; }
+  if(!cfgChar && !wifiDevBase){ alert('Connect to your device first.'); return; }
   const ssid = $('dSsid').value.trim();
   const pass = $('dPass').value;
   if(!ssid){ alert('Enter SSID first.'); return; }
@@ -1021,44 +1038,45 @@ async function testWifi(){
 }
 
 async function deviceSave(){
-  if(!cfgChar){ alert('Not connected.'); return; }
-  // Build the patch. Only send fields the user actually changed / filled.
-  const patch = {op:'set'};
+  if(!cfgChar && !wifiDevBase){ alert('Not connected.'); return; }
+
   const cur   = deviceCfg || {};
-  const put   = (k, v, cmp) => { if(v !== '' && v !== null && v !== undefined && v !== cmp) patch[k] = v; };
-
+  const patch = {};
   if(pendingMode && pendingMode !== cur.mode) patch.mode = pendingMode;
-
   const ssid = $('dSsid').value.trim();
   if(ssid && ssid !== cur.ssid) patch.ssid = ssid;
-
   const pass = $('dPass').value;
   if(pass) patch.pass = pass;
-
   const server = $('dServer').value.trim().replace(/\/$/,'');
   if(server && server !== cur.server) patch.server = server;
-
   const key = $('dKey').value.trim();
   if(key) patch.key = key;
-
   const lat = parseFloat($('dLat').value);
   const lng = parseFloat($('dLng').value);
   if(!isNaN(lat) && lat !== cur.lat) patch.lat = lat;
   if(!isNaN(lng) && lng !== cur.lng) patch.lng = lng;
-
   const iv = parseInt($('dInterval').value);
   const bc = parseInt($('dBatch').value);
   if(iv > 0 && iv !== cur.interval) patch.interval = iv;
   if(bc > 0 && bc !== cur.batch)    patch.batch    = bc;
 
-  const keys = Object.keys(patch).filter(k=>k!=='op');
-  if(!keys.length){ alert('Nothing to save.'); return; }
+  if(!Object.keys(patch).length){ alert('Nothing to save.'); return; }
 
   const btn = $('devSaveBtn');
   btn.textContent = 'Saving…';
   btn.disabled = true;
   try{
-    await cfgWrite(patch);
+    if(cfgChar){
+      await cfgWrite(Object.assign({op:'set'}, patch));
+    } else {
+      const r = await fetch(wifiDevBase+'/api/config', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify(patch), signal: AbortSignal.timeout(4000)
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const fresh = await fetch(wifiDevBase+'/api/config', {signal: AbortSignal.timeout(3000)});
+      if(fresh.ok){ const cfg = await fresh.json(); Object.assign(deviceCfg||{}, cfg); renderDevCfg(); }
+    }
     $('dPass').value = '';
     $('dKey').value  = '';
     pendingMode = null;
@@ -1073,14 +1091,23 @@ async function deviceSave(){
 }
 
 async function deviceReboot(){
-  if(!cfgChar){ return; }
+  if(!cfgChar && !wifiDevBase){ return; }
   if(!confirm('Reboot the device? It will disconnect and come back in ~10s.')) return;
-  try{ await cfgWrite({op:'reboot'}); }catch(e){}
+  if(wifiDevBase){
+    try{ await fetch(wifiDevBase+'/api/reboot', {method:'POST', signal: AbortSignal.timeout(3000)}); }catch(e){}
+    wifiDisconnect();
+  } else {
+    try{ await cfgWrite({op:'reboot'}); }catch(e){}
+  }
 }
 async function deviceErase(){
-  if(!cfgChar){ return; }
+  if(!cfgChar && !wifiDevBase){ return; }
   if(!confirm('Erase ALL device settings? This clears WiFi, server, key, and location.')) return;
-  try{ await cfgWrite({op:'erase'}); }catch(e){}
+  if(wifiDevBase){
+    try{ await fetch(wifiDevBase+'/api/erase', {method:'POST', signal: AbortSignal.timeout(3000)}); }catch(e){}
+  } else {
+    try{ await cfgWrite({op:'erase'}); }catch(e){}
+  }
 }
 
 
@@ -1092,6 +1119,12 @@ function openSettings(){
     $('devMissing').style.display = 'none';
     cfgWrite({op:'get'}).catch(()=>{});
     if(deviceCfg) renderDevCfg();
+  } else if(wifiDevBase){
+    $('devSection').style.display = '';
+    $('devMissing').style.display = 'none';
+    if(deviceCfg) renderDevCfg();
+    fetch(wifiDevBase+'/api/config', {signal: AbortSignal.timeout(3000)})
+      .then(r=>r.json()).then(cfg=>{ Object.assign(deviceCfg||{}, cfg); renderDevCfg(); }).catch(()=>{});
   } else {
     $('devSection').style.display = 'none';
     $('devMissing').style.display = '';
@@ -1125,9 +1158,67 @@ document.getElementById('settingsModal').addEventListener('click', e => {
   if(e.target.id === 'settingsModal') closeSettings();
 });
 
+// ── WiFi HTTP fallback (after BLE discovery) ────────────────
+// BLE discovers the device's WiFi IP. When BLE disconnects,
+// we switch to HTTP automatically if the device is reachable.
+
+async function wifiFallback(base){
+  try{
+    const r = await fetch(base+'/api/status', {signal: AbortSignal.timeout(4000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    wifiDevBase = base;
+    $('dot').classList.add('on');
+    $('sTxt').textContent=(d.serial||'AirWear')+' (WiFi)';
+    $('btnCon').textContent='WIFI';
+    $('btnCon').style.opacity='.6';
+    $('btnCon').style.cursor='default';
+    if(d.pm25 !== undefined) onSample(d.pm1||0, d.pm25, d.pm10||0);
+    wifiPollStart();
+    // Fetch full config for settings panels
+    try{
+      const c = await fetch(base+'/api/config', {signal: AbortSignal.timeout(3000)});
+      if(c.ok){ const cfg = await c.json(); Object.assign(deviceCfg||{}, cfg); renderDevCfg(); }
+    }catch(e){}
+  }catch(e){
+    wifiDevBase = null;
+    $('dot').classList.remove('on');
+    $('sTxt').textContent='DISCONNECTED';
+    $('btnCon').textContent='RECONNECT';
+    $('btnCon').style.opacity='1';
+    $('btnCon').style.cursor='pointer';
+    deviceCfg=null;
+  }
+}
+
+function wifiPollStart(){
+  wifiPollStop();
+  wifiPollTimer = setInterval(async()=>{
+    if(!wifiDevBase) return;
+    try{
+      const r = await fetch(wifiDevBase+'/api/status', {signal: AbortSignal.timeout(3000)});
+      if(!r.ok) return;
+      const d = await r.json();
+      if(d.pm25 !== undefined) onSample(d.pm1||0, d.pm25, d.pm10||0);
+    }catch(e){}
+  }, 2000);
+}
+function wifiPollStop(){
+  if(wifiPollTimer){ clearInterval(wifiPollTimer); wifiPollTimer=null; }
+}
+
+function wifiDisconnect(){
+  wifiPollStop();
+  wifiDevBase = null;
+  $('dot').classList.remove('on');
+  $('sTxt').textContent='DISCONNECTED';
+  $('btnCon').textContent='RECONNECT';
+  $('btnCon').style.opacity='1';
+  $('btnCon').style.cursor='pointer';
+  deviceCfg=null;
+}
+
 // ── BLE-based WiFi management ───────────────────────────────
-// All WiFi config goes through BLE — HTTPS pages cannot reach
-// HTTP local devices (mixed-content browser policy).
 
 function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
@@ -1169,21 +1260,39 @@ function renderSavedAps(){
 }
 
 async function bleApAdd(){
-  if(!cfgChar){ alert('Connect to device via BLE first.'); return; }
+  if(!cfgChar && !wifiDevBase){ alert('Connect to device first.'); return; }
   const ssid = $('apAddSsid').value.trim();
   const pass = $('apAddPass').value;
   if(!ssid){ alert('Enter an SSID.'); return; }
   try{
-    await cfgWrite({op:'ap_add', ssid, pass});
+    if(cfgChar){
+      await cfgWrite({op:'ap_add', ssid, pass});
+    } else {
+      const r = await fetch(wifiDevBase+'/api/ap', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ssid, pass}), signal: AbortSignal.timeout(4000)
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const fresh = await fetch(wifiDevBase+'/api/aps', {signal: AbortSignal.timeout(3000)});
+      if(fresh.ok){ const d=await fresh.json(); deviceCfg.aps=d.aps; deviceCfg.apCount=d.count; renderSavedAps(); }
+    }
     $('apAddSsid').value = '';
     $('apAddPass').value = '';
   }catch(e){ alert('Error: '+e.message); }
 }
 
 async function bleApDel(ssid){
-  if(!cfgChar) return;
+  if(!cfgChar && !wifiDevBase) return;
   if(!confirm('Remove "'+ssid+'" from saved networks?')) return;
-  try{ await cfgWrite({op:'ap_del', ssid}); }catch(e){ alert('Error: '+e.message); }
+  try{
+    if(cfgChar){
+      await cfgWrite({op:'ap_del', ssid});
+    } else {
+      await fetch(wifiDevBase+'/api/ap?ssid='+encodeURIComponent(ssid), {method:'DELETE', signal: AbortSignal.timeout(4000)});
+      const fresh = await fetch(wifiDevBase+'/api/aps', {signal: AbortSignal.timeout(3000)});
+      if(fresh.ok){ const d=await fresh.json(); deviceCfg.aps=d.aps; deviceCfg.apCount=d.count; renderSavedAps(); }
+    }
+  }catch(e){ alert('Error: '+e.message); }
 }
 
 // WiFi scan results arrive as BLE notifications (chunked)
@@ -1226,12 +1335,23 @@ function renderScanResults(){
 }
 
 async function bleScanNetworks(){
-  if(!cfgChar){ alert('Connect to device via BLE first.'); return; }
+  if(!cfgChar && !wifiDevBase){ alert('Connect to device first.'); return; }
   $('wifiScanStatus').textContent = 'scanning…';
   $('wifiScanStatus').className = 'set-status';
   $('wifiScanList').innerHTML = '';
   scanResults = []; scanTotal = -1;
-  try{ await cfgWrite({op:'scan'}); }catch(e){
+  try{
+    if(cfgChar){
+      await cfgWrite({op:'scan'});
+    } else {
+      const r = await fetch(wifiDevBase+'/api/scan', {signal: AbortSignal.timeout(15000)});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const d = await r.json();
+      scanResults = d.networks||[];
+      scanTotal = scanResults.length;
+      renderScanResults();
+    }
+  }catch(e){
     $('wifiScanStatus').textContent = '✗ '+e.message;
     $('wifiScanStatus').className = 'set-status err';
   }
