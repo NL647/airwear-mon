@@ -327,10 +327,15 @@ body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
       </div>
     </div>
 
-    <!-- Shown when BLE not connected -->
+    <!-- Shown when not connected -->
     <div class="set-section" id="devMissing">
       <div class="set-section-h">Device <span class="badge warn">not connected</span></div>
-      <p class="set-hint">Tap CONNECT below to pair with your AirWear device over Bluetooth.</p>
+      <p class="set-hint" style="margin-bottom:8px;">Connect via Bluetooth (tap CONNECT below) or via WiFi if you know the device IP.</p>
+      <div class="set-row" style="gap:6px;">
+        <input class="set-i" id="wifiManualIp" type="text" placeholder="Device IP (e.g. 192.168.100.124)" style="flex:1;"/>
+        <button class="set-inline-btn primary" onclick="manualWifiConnect()">WiFi Connect</button>
+      </div>
+      <div class="set-status" id="wifiManualStatus" style="margin-top:6px;"></div>
     </div>
 
     <!-- ═══ WIFI STATUS (shown when device has WiFi) ═══ -->
@@ -840,11 +845,13 @@ function onDisc(){
   cfgChar=null;
 
   // If device was on WiFi, try automatic HTTP fallback
-  const knownIp = deviceCfg && deviceCfg.wifi && deviceCfg.ip;
-  if(knownIp){
-    $('sTxt').textContent='WiFi…';
+  const savedIp = (deviceCfg && deviceCfg.wifi && deviceCfg.ip)
+    ? deviceCfg.ip
+    : localStorage.getItem('aw_dev_ip');
+  if(savedIp){
+    $('sTxt').textContent='switching to WiFi…';
     $('btnCon').textContent='SWITCHING';
-    wifiFallback('http://'+deviceCfg.ip);
+    wifiFallback('http://'+savedIp);
     return;
   }
 
@@ -857,8 +864,11 @@ function onDisc(){
 }
 $('btnCon').addEventListener('click',()=>{
   const txt=$('btnCon').textContent;
-  if(txt==='CONNECTED'||txt==='SCANNING…'||txt==='SWITCHING') return;
-  if(txt==='WIFI'){ wifiDisconnect(); return; }
+  if(txt==='CONNECTED'||txt==='SCANNING…'||txt==='switching to WiFi…') return;
+  if(txt==='WIFI'){
+    if(confirm('Disconnect WiFi and switch to Bluetooth?')){ wifiDisconnect(); connect(); }
+    return;
+  }
   connect();
 });
 
@@ -1131,6 +1141,9 @@ function openSettings(){
     $('wifiInfoSection').style.display = 'none';
     $('wifiApsSection').style.display = 'none';
     $('wifiScanSection').style.display = 'none';
+    // Pre-fill last known IP for manual WiFi connect
+    const lastIp = localStorage.getItem('aw_dev_ip');
+    if(lastIp) $('wifiManualIp').value = lastIp;
   }
   $('wifiStatus').textContent = 'idle';
   $('wifiStatus').className   = 'set-status';
@@ -1168,17 +1181,20 @@ async function wifiFallback(base){
     if(!r.ok) throw new Error('HTTP '+r.status);
     const d = await r.json();
     wifiDevBase = base;
+    localStorage.setItem('aw_dev_ip', base.replace('http://',''));
     $('dot').classList.add('on');
     $('sTxt').textContent=(d.serial||'AirWear')+' (WiFi)';
     $('btnCon').textContent='WIFI';
-    $('btnCon').style.opacity='.6';
-    $('btnCon').style.cursor='default';
+    $('btnCon').style.opacity='1';
+    $('btnCon').style.cursor='pointer';
+    deviceCfg = deviceCfg || {};
+    Object.assign(deviceCfg, d);
     if(d.pm25 !== undefined) onSample(d.pm1||0, d.pm25, d.pm10||0);
     wifiPollStart();
-    // Fetch full config for settings panels
+    // Fetch full config including AP list
     try{
       const c = await fetch(base+'/api/config', {signal: AbortSignal.timeout(3000)});
-      if(c.ok){ const cfg = await c.json(); Object.assign(deviceCfg||{}, cfg); renderDevCfg(); }
+      if(c.ok){ Object.assign(deviceCfg, await c.json()); renderDevCfg(); }
     }catch(e){}
   }catch(e){
     wifiDevBase = null;
@@ -1216,6 +1232,27 @@ function wifiDisconnect(){
   $('btnCon').style.opacity='1';
   $('btnCon').style.cursor='pointer';
   deviceCfg=null;
+}
+
+async function manualWifiConnect(){
+  const addr = $('wifiManualIp').value.trim();
+  if(!addr){ alert('Enter the device IP address.'); return; }
+  const base = addr.match(/^https?:\/\//) ? addr.replace(/\/$/,'') : 'http://'+addr.replace(/\/$/,'');
+  const st = $('wifiManualStatus');
+  st.textContent = 'connecting…'; st.className = 'set-status';
+  try{
+    const r = await fetch(base+'/api/status', {signal: AbortSignal.timeout(4000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    localStorage.setItem('aw_dev_ip', addr);
+    st.textContent = ''; st.className = 'set-status';
+    deviceCfg = d;
+    await wifiFallback(base);
+    if(wifiDevBase) renderDevCfg();
+  }catch(e){
+    st.textContent = 'Failed: '+e.message;
+    st.className = 'set-status err';
+  }
 }
 
 // ── BLE-based WiFi management ───────────────────────────────
